@@ -1,4 +1,6 @@
 from keras import backend as K
+K.set_image_dim_ordering('th')
+
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Reshape
@@ -15,7 +17,6 @@ import argparse
 import math
 import Data as Data
 
-K.set_image_dim_ordering('th')
 
 
 def generator_model():
@@ -25,7 +26,7 @@ def generator_model():
     model.add(Dense(1024 * 7 * 6))
     model.add(BatchNormalization())
     model.add(Activation('relu'))
-    model.add(Reshape((1024, 7, 6), input_shape=(1024 * 7 * 6)))
+    model.add(Reshape((1024, 7, 6), input_shape=(1024 * 7 * 6,)))
     model.add(UpSampling2D(size=(2, 2)))
     model.add(Convolution2D(512, 5, 5, border_mode='same'))
     model.add(Activation('relu'))
@@ -98,8 +99,9 @@ def combine_images(generated_images):
 
 def train(BATCH_SIZE):
     # load the training data
-    X_train, y_train, X_test, y_test = Data.load_data('data.h5')
-
+    print('Data loading..')
+    X_train, y_train, X_test, y_test = Data.loadData('data.h5')
+    print('Data Loaded.')
     #   Reshape the img in the format of (number of rows, channels, height, weight)
     X_train = X_train.reshape((X_train.shape[0], 3) + X_train.shape[1:3])
     y_train = y_train.reshape((y_train.shape[0], 3) + y_train.shape[1:3])
