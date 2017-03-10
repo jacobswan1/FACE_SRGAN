@@ -8,6 +8,7 @@ from keras.layers.convolutional import UpSampling2D
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Flatten
 from keras.optimizers import SGD
+from keras.layers.core import Dropout
 import numpy as np
 from PIL import Image
 import argparse
@@ -19,15 +20,24 @@ K.set_image_dim_ordering('th')
 
 def generator_model():
     model = Sequential()
-    model.add(Convolution2D(
-                        64, 5, 5,
-                        border_mode='same',
-                        input_shape=(3, 112, 96)))
-    model.add(Activation('tanh'))
-    model.add(Convolution2D(32, 5, 5, border_mode='same'))
-    model.add(Activation('tanh'))
+    model.add(Dense(input_dim=100, output_dim=1024))
+    model.add(Activation('relu'))
+    model.add(Dense(1024 * 7 * 6))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(Reshape((1024, 7, 6), input_shape=(1024 * 7 * 6)))
+    model.add(UpSampling2D(size=(2, 2)))
+    model.add(Convolution2D(512, 5, 5, border_mode='same'))
+    model.add(Activation('relu'))
+    model.add(UpSampling2D(size=(2, 2)))
+    model.add(Convolution2D(256, 5, 5, border_mode='same'))
+    model.add(Activation('relu'))
+    model.add(UpSampling2D(size=(2, 2)))
+    model.add(Convolution2D(128, 5, 5, border_mode='same'))
+    model.add(Activation('relu'))
+    model.add(UpSampling2D(size=(2, 2)))
     model.add(Convolution2D(3, 5, 5, border_mode='same'))
-    model.add(Activation('tanh'))
+    model.add(Activation('relu'))
     return model
 
 
@@ -37,14 +47,27 @@ def discriminator_model():
                         16, 5, 5,
                         border_mode='same',
                         input_shape=(3, 112, 96)))
-    model.add(Activation('tanh'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.2))
+
     model.add(Convolution2D(32, 5, 5))
-    model.add(Activation('tanh'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.2))
+
+    model.add(Convolution2D(64, 5, 5))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.2))
+
+    model.add(Convolution2D(96, 5, 5))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Activation('relu'))
+
     model.add(Flatten())
     model.add(Dense(1024))
-    model.add(Activation('tanh'))
+    model.add(Activation('relu'))
     model.add(Dense(1))
     model.add(Activation('sigmoid'))
     return model
@@ -92,18 +115,18 @@ def train(BATCH_SIZE):
         loss='binary_crossentropy', optimizer=g_optim)
     discriminator.trainable = True
     discriminator.compile(loss='binary_crossentropy', optimizer=d_optim)
-    #   noise = np.zeros((BATCH_SIZE, 100))
+    noise = np.zeros((BATCH_SIZE, 100))
     for epoch in range(100):
         print("Epoch is", epoch)
         print("Number of batches", int(X_train.shape[0]/BATCH_SIZE))
         for index in range(int(X_train.shape[0]/BATCH_SIZE)):
             # Random Signal Goes here (if needed)
-            #   for i in range(BATCH_SIZE):
-            #        noise[i, :] = np.random.uniform(-1, 1, 100)
+            for i in range(BATCH_SIZE):
+                noise[i, :] = np.random.uniform(-1, 1, 100)
 
-            lr_image_batch = X_train[index*BATCH_SIZE:(index+1)*BATCH_SIZE]
+            #lr_image_batch = X_train[index*BATCH_SIZE:(index+1)*BATCH_SIZE]
             hr_image_batch = y_train[index*BATCH_SIZE:(index+1)*BATCH_SIZE]
-            generated_images = generator.predict(lr_image_batch, verbose=0)
+            generated_images = generator.predict(noise[i, :], verbose=0)
 
             if index % 20 == 0:
                 image = combine_images(generated_images)
@@ -115,11 +138,11 @@ def train(BATCH_SIZE):
             d_loss = discriminator.train_on_batch(X, y)
             print("batch %d d_loss : %f" % (index, d_loss))
 
-            #   for i in range(BATCH_SIZE):
-            #      noise[i, :] = np.random.uniform(-1, 1, 100)
+            for i in range(BATCH_SIZE):
+                noise[i, :] = np.random.uniform(-1, 1, 100)
             discriminator.trainable = False
             g_loss = discriminator_on_generator.train_on_batch(
-                lr_image_batch, [1] * BATCH_SIZE)
+                noise[i, :], [1] * BATCH_SIZE)
             discriminator.trainable = True
             print("batch %d g_loss : %f" % (index, g_loss))
             if index % 10 == 9:
