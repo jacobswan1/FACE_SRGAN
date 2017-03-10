@@ -8,11 +8,11 @@ from keras.layers.convolutional import UpSampling2D
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Flatten
 from keras.optimizers import SGD
-from skimage import io
 import numpy as np
 from PIL import Image
 import argparse
 import math
+import Data as Data
 
 K.set_image_dim_ordering('th')
 
@@ -23,11 +23,11 @@ def generator_model():
                         64, 5, 5,
                         border_mode='same',
                         input_shape=(3, 112, 96)))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     model.add(Convolution2D(32, 5, 5, border_mode='same'))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     model.add(Convolution2D(3, 5, 5, border_mode='same'))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     return model
 
 
@@ -37,14 +37,14 @@ def discriminator_model():
                         16, 5, 5,
                         border_mode='same',
                         input_shape=(3, 112, 96)))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Convolution2D(32, 5, 5))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
     model.add(Dense(1024))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     model.add(Dense(1))
     model.add(Activation('sigmoid'))
     return model
@@ -74,17 +74,9 @@ def combine_images(generated_images):
 
 
 def train(BATCH_SIZE):
-    print('Loading Dataset...')
-    #   (X_train, y_train), (X_test, y_test) = load_data()
-    X_train = load_data('lr_training.txt')
-    y_train = load_data2('hr_training.txt')
-    X_test = load_data('lr_val.txt')
-    y_test = load_data2('hr_val.txt')
-    print('Data_set loaded. Now normalizing...')
-    #   Normalized to [-1:1]
-    X_train = (X_train.astype(np.float32) - 255.5)/ 255.5
-    y_train = (y_train.astype(np.float32) - 255.5)/ 255.5
-    print('Normalized.')
+    # load the training data
+    X_train, y_train, X_test, y_test = Data.load_data('data.h5')
+
     #   Reshape the img in the format of (number of rows, channels, height, weight)
     X_train = X_train.reshape((X_train.shape[0], 3) + X_train.shape[1:3])
     y_train = y_train.reshape((y_train.shape[0], 3) + y_train.shape[1:3])
@@ -101,7 +93,6 @@ def train(BATCH_SIZE):
     discriminator.trainable = True
     discriminator.compile(loss='binary_crossentropy', optimizer=d_optim)
     #   noise = np.zeros((BATCH_SIZE, 100))
-    print('Model deployed.')
     for epoch in range(100):
         print("Epoch is", epoch)
         print("Number of batches", int(X_train.shape[0]/BATCH_SIZE))
@@ -170,27 +161,7 @@ def train(BATCH_SIZE):
 # #         "./image_result/generated_image.png")
 
 
-def load_data(txt_name):
-    path = open('/home/dl/zyfang/face_example/'+txt_name, 'r')
-    lines = path.readlines()
-    X_train = np.zeros([len(lines), 112, 96, 3])
-    for i in range(len(lines)):
-        img = io.imread(lines[i].replace('/home/zyfang/caffe-face', '/home/dl/zyfang').replace(' 0\n', ''))
-        if (len(img.shape) == 3):
-            X_train[i] = img
-    return X_train
 
-def load_data2(txt_name):
-    path = open('/home/dl/zyfang/face_example/'+txt_name, 'r')
-    lines = path.readlines()
-    X_train = np.zeros([len(lines), 112, 96, 3])
-    for i in range(len(lines)):
-        t = lines[i].replace('/media/sdb/ECCV16-SIAT/','/home/dl/zyfang/')
-        t = t[0: t.index('.jpg')+4]
-        img = io.imread(t)
-        if (len(img.shape) == 3):
-            X_train[i] = img
-    return X_train
 
 def get_args():
     parser = argparse.ArgumentParser()
