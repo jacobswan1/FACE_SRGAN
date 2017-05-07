@@ -9,24 +9,24 @@ import h5py
 def load_data(txt_name):
     path = open('/home/dl/zyfang/face_example/'+txt_name, 'r')
     lines = path.readlines()
-    X_train = np.zeros([len(lines), 112, 96, 3])
+    X_train = []
     for i in range(len(lines)):
         img = io.imread(lines[i].replace('/home/zyfang/caffe-face', '/home/dl/zyfang').replace(' 0\n', ''))
         if (len(img.shape) == 3):
-            X_train[i] = img
-    return X_train
+            X_train.append(img)
+    return np.asarray(X_train)
 
 def load_data2(txt_name):
     path = open('/home/dl/zyfang/face_example/'+txt_name, 'r')
     lines = path.readlines()
-    X_train = np.zeros([len(lines), 112, 96, 3])
+    X_train = []
     for i in range(len(lines)):
         t = lines[i].replace('/media/sdb/ECCV16-SIAT/','/home/dl/zyfang/')
         t = t[0: t.index('.jpg')+4]
         img = io.imread(t)
         if (len(img.shape) == 3):
-            X_train[i] = img
-    return X_train
+            X_train.append(img)
+    return np.asarray(X_train)
 
 def compressData():
     X_train = load_data('lr_training.txt')
